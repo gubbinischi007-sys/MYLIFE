@@ -1,0 +1,396 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #000;
+  --s: #111;
+  --t: #fff;
+  --m: #a3a3a3;
+  --a: #fff;
+  --ok: #ddd;
+  --w: #fff;
+  --bad: #ff4d4f;
+  --l: #2e2e2e;
+  color-scheme: dark;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f5f5;
+  --s: #fff;
+  --t: #0a0a0a;
+  --m: #555;
+  --a: #000;
+  --ok: #222;
+  --w: #000;
+  --bad: #dc2626;
+  --l: #d4d4d4;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--t);
+  font: 16px/1.5 "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin: 0.2em 0;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 1.2em 0 0.5em;
+  font-weight: 700;
+}
+
+.m {
+  color: var(--m);
+  font-size: 0.9rem;
+}
+
+.c {
+  background: var(--s);
+  border: 1px solid var(--l);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+
+.g {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.big {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+input, select, button {
+  font: inherit;
+  color: var(--t);
+  background: var(--s);
+  border: 1px solid var(--l);
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-height: 40px;
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--a);
+  outline-offset: 1px;
+}
+
+button {
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button.p {
+  background: var(--a);
+  color: var(--bg);
+  border-color: var(--a);
+  font-weight: 600;
+}
+
+.r {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.r > input[type=text], .r > input:not([type]) {
+  flex: 1;
+  min-width: 140px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+  padding-bottom: 2px;
+}
+
+.tabs button {
+  white-space: nowrap;
+}
+
+.tabs button[aria-pressed=true] {
+  background: var(--a);
+  color: var(--bg);
+  border-color: var(--a);
+  font-weight: 700;
+}
+
+.i {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.i b {
+  font-weight: 600;
+}
+
+.done b {
+  text-decoration: line-through;
+  color: var(--m);
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--l);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  border-radius: 4px;
+}
+
+.warn {
+  border: 2px dashed var(--t);
+}
+
+.over {
+  border: 2px solid var(--t);
+  font-weight: 600;
+}
+
+.t {
+  display: block;
+  cursor: pointer;
+  color: var(--t);
+  text-decoration: none;
+}
+
+nav.bot-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background: var(--s);
+  border-top: 1px solid var(--l);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 30;
+}
+
+nav.bot-nav button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  padding: 8px 0 10px;
+  color: var(--m);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  min-height: auto;
+}
+
+nav.bot-nav svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ic, nav.bot-nav svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+nav.bot-nav button.on {
+  color: var(--a);
+  font-weight: 700;
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 90px;
+  transform: translateX(-50%);
+  background: var(--t);
+  color: var(--bg);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#toast button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--m);
+}
+
+.empty-state svg {
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+#opening-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background-color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease-out;
+  pointer-events: auto;
+}
+
+#opening-screen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#opening-screen img {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+img.rc {
+  height: 36px;
+  width: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  padding: 6px 0 10px;
+  margin-bottom: 4px;
+}
+
+.top h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.bk {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--s);
+  border: 1px solid var(--t);
+  color: var(--t);
+}
+
+.bk:active {
+  background: var(--t);
+  color: var(--bg);
+}
+
+.top .mb {
+  margin-left: auto;
+}
+
+#mn {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#mn > div {
+  width: min(300px, 85%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--s);
+  border-right: 1px solid var(--t);
+  padding: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+}
+
+#mn h2 {
+  margin: 1.1em 0 0.4em;
+}
+
+#mn .i {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--l);
+}
+
+:focus-visible {
+  outline: 2px solid var(--a);
+  outline-offset: 2px;
+}
