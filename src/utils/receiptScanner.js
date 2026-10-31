@@ -12,10 +12,10 @@ export function getGeminiApiKey(customKey = '') {
 }
 
 /**
- * Compresses an image File or Blob via Canvas to a maximum dimension
- * and JPEG quality for fast network transport and lightweight storage.
+ * Compresses an image File or Blob via Canvas to a maximum dimension (default 800px)
+ * and JPEG quality (0.65) for ultra-fast OCR scanning and lightweight storage.
  */
-export function compressReceiptImage(file, maxDim = 1200, quality = 0.75) {
+export function compressReceiptImage(file, maxDim = 800, quality = 0.65) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
@@ -23,7 +23,6 @@ export function compressReceiptImage(file, maxDim = 1200, quality = 0.75) {
       const img = new Image();
       img.onerror = reject;
       img.onload = () => {
-        const canvas = document.createElement('canvas');
         let w = img.width;
         let h = img.height;
         if (w > maxDim || h > maxDim) {
@@ -35,6 +34,7 @@ export function compressReceiptImage(file, maxDim = 1200, quality = 0.75) {
             h = maxDim;
           }
         }
+        const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
@@ -49,23 +49,27 @@ export function compressReceiptImage(file, maxDim = 1200, quality = 0.75) {
 }
 
 /**
- * Sends the receipt image to Google Gemini 2.5 Flash Vision API
+ * Sends the receipt image to Google Gemini Vision API
  * to extract amount, merchant, category, date, and note.
- * First attempts the secure serverless /api/scan-receipt endpoint;
- * falls back to direct client-side Google API call if needed.
+ * Uses low-latency gemini-2.0-flash (and 2.5-flash with thinkingBudget: 0)
+ * to return results in ~1 second.
  */
 export async function scanReceiptWithGemini(file, apiKey = '') {
-  // 1. Compress image to avoid large payloads and fit neatly in phone storage
-  const dataUrl = await compressReceiptImage(file);
+  // 1. Fast lightweight compression (800px max, 0.65 quality)
+  const dataUrl = await compressReceiptImage(file, 800, 0.65);
   const base64Data = dataUrl.split(',')[1];
 
-  // Try serverless endpoint first
+  // 2. Try fast serverless endpoint first (with 8s timeout)
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     const apiRes = await fetch('/api/scan-receipt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' })
+      body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' }),
+      signal: controller.signal
     });
+    clearTimeout(timer);
 
     if (apiRes.ok) {
       const parsed = await apiRes.json();
@@ -79,10 +83,10 @@ export async function scanReceiptWithGemini(file, apiKey = '') {
       };
     }
   } catch (err) {
-    // Fall back to direct client-side call
+    // Continue to direct client-side call
   }
 
-  // Direct client-side call using configured key
+  // 3. Direct client-side call using configured key
   const keyToUse = getGeminiApiKey(apiKey);
   if (!keyToUse) {
     throw new Error('Gemini API key is not configured.');
@@ -99,38 +103,67 @@ Return ONLY valid JSON matching this exact structure:
   "note": string (short 3-6 word summary of store name or main items, e.g. "Starbucks coffee", "Grocery shopping", "Metro ticket")
 }`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${keyToUse}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              inlineData: {
-                mimeType: 'image/jpeg',
-                data: base64Data
-              }
-            },
-            { text: prompt }
-          ]
-        }
-      ],
-      generationConfig: {
+  // Use low-latency models: 2.0-flash has no thinking delay; 2.5-flash with thinkingBudget: 0
+  const models = [
+    {
+      name: 'gemini-2.0-flash',
+      config: {
         responseMimeType: 'application/json',
         temperature: 0.1
       }
-    })
-  });
+    },
+    {
+      name: 'gemini-2.5-flash',
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 }
+      }
+    }
+  ];
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Scanner error (${response.status}): ${errText}`);
+  let json = null;
+  let lastErr = null;
+
+  for (const m of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.name}:generateContent?key=${keyToUse}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: base64Data
+                  }
+                },
+                { text: prompt }
+              ]
+            }
+          ],
+          generationConfig: m.config
+        })
+      });
+
+      if (response.ok) {
+        json = await response.json();
+        break;
+      } else {
+        lastErr = await response.text();
+      }
+    } catch (e) {
+      lastErr = e.message;
+    }
   }
 
-  const json = await response.json();
+  if (!json) {
+    throw new Error(`Scanner error: ${lastErr || 'Could not parse bill'}`);
+  }
+
   const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawText) throw new Error('No receipt data returned');
 

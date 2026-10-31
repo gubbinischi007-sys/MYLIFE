@@ -25,38 +25,68 @@ Return ONLY valid JSON matching this exact structure:
   "note": string (short 3-6 word summary of store name or main items, e.g. "Starbucks coffee", "Grocery shopping", "Metro ticket")
 }`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                inlineData: {
-                  mimeType,
-                  data: base64Data
-                }
-              },
-              { text: prompt }
-            ]
-          }
-        ],
-        generationConfig: {
+    // Prefer gemini-2.0-flash for sub-second low-latency extraction without thinking delay;
+    // fallback to gemini-2.5-flash with thinking explicitly disabled (thinkingBudget: 0).
+    const models = [
+      {
+        name: 'gemini-2.0-flash',
+        config: {
           responseMimeType: 'application/json',
           temperature: 0.1
         }
-      })
-    });
+      },
+      {
+        name: 'gemini-2.5-flash',
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          thinkingConfig: { thinkingBudget: 0 }
+        }
+      }
+    ];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({ error: errText });
+    let lastError = null;
+    let json = null;
+
+    for (const m of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.name}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType,
+                      data: base64Data
+                    }
+                  },
+                  { text: prompt }
+                ]
+              }
+            ],
+            generationConfig: m.config
+          })
+        });
+
+        if (response.ok) {
+          json = await response.json();
+          break;
+        } else {
+          lastError = await response.text();
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
     }
 
-    const json = await response.json();
+    if (!json) {
+      return res.status(500).json({ error: lastError || 'Gemini processing failed' });
+    }
+
     const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) {
       return res.status(500).json({ error: 'Empty response from Gemini' });

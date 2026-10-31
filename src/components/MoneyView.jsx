@@ -117,6 +117,8 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     setExpNote('');
     setExpReceipt(null);
     setExistingReceipt(null);
+    const fileInput = document.getElementById('er_receipt');
+    if (fileInput) fileInput.value = '';
   };
 
   const handleSaveExpense = (e) => {
@@ -128,7 +130,8 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     }
 
     const finalizeExp = (imgData) => {
-      const finalImg = imgData !== undefined ? imgData : (editingExpId ? existingReceipt : null);
+      // Use explicit compressed image if uploaded, or preserve scanned/existing receipt, or null
+      const finalImg = imgData !== undefined ? imgData : (existingReceipt || null);
 
       if (editingExpId) {
         onUpdateDb((prev) => ({
@@ -159,8 +162,12 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
         tx: [newExp, ...prev.tx]
       }));
       setExpAmt('');
+      setExpCat(CATS[0]);
       setExpNote('');
       setExpReceipt(null);
+      setExistingReceipt(null);
+      const fileInput = document.getElementById('er_receipt');
+      if (fileInput) fileInput.value = '';
       triggerHaptic('success', db.haptics);
       if (onToast) onToast('Expense saved.');
     };
