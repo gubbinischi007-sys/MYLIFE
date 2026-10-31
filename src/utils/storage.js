@@ -1,5 +1,6 @@
 export const K = 'mylife.v1';
 export const CATS = ['Food', 'Travel', 'Study', 'Bills', 'Fun', 'Other'];
+export const INCOME_SOURCES = ['Salary', 'Pocket money', 'Freelance', 'Gift', 'Other'];
 
 export const ACCENT_COLORS = {
   white: { name: 'Monochrome', hex: '#ffffff' },

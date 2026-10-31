@@ -1,26 +1,31 @@
 import React, { useState } from 'react';
 import Icon from './Icons';
-import { CATS, fmt, month, today, getSpentForMonth, getDailyAllowance, triggerHaptic } from '../utils/storage';
+import { CATS, INCOME_SOURCES, fmt, month, today, getSpentForMonth, getDailyAllowance, triggerHaptic } from '../utils/storage';
 
 const OPACITIES = [1, 0.8, 0.6, 0.45, 0.3, 0.18];
 
 export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, onToastWithUndo }) {
-  const [tab, setTab] = useState(initialTab); // 'ov' | 'tx' | 'bg'
+  const [tab, setTab] = useState(initialTab); // 'ov' | 'in' | 'ex' | 'bg'
 
-  // Transaction Form State
-  const [editingTxId, setEditingTxId] = useState(null);
+  // Income Form State
+  const [editingIncId, setEditingIncId] = useState(null);
+  const [incAmt, setIncAmt] = useState('');
+  const [incSource, setIncSource] = useState(INCOME_SOURCES[0]);
+  const [incNote, setIncNote] = useState('');
+  const [incSearch, setIncSearch] = useState('');
+  const [incFilterSource, setIncFilterSource] = useState('');
+  const [incFilterMonth, setIncFilterMonth] = useState('');
+
+  // Expense Form State
+  const [editingExpId, setEditingExpId] = useState(null);
   const [existingReceipt, setExistingReceipt] = useState(null);
-  const [txType, setTxType] = useState('expense');
-  const [txAmt, setTxAmt] = useState('');
-  const [txCat, setTxCat] = useState(CATS[0]);
-  const [txNote, setTxNote] = useState('');
-  const [txReceipt, setTxReceipt] = useState(null);
-
-  // Filter State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterCat, setFilterCat] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
+  const [expAmt, setExpAmt] = useState('');
+  const [expCat, setExpCat] = useState(CATS[0]);
+  const [expNote, setExpNote] = useState('');
+  const [expReceipt, setExpReceipt] = useState(null);
+  const [expSearch, setExpSearch] = useState('');
+  const [expFilterCat, setExpFilterCat] = useState('');
+  const [expFilterMonth, setExpFilterMonth] = useState('');
 
   // Budget State
   const [budgetInputs, setBudgetInputs] = useState(db.budget || {});
@@ -28,81 +33,137 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
   const currentMonth = month();
   const monthExpenses = getSpentForMonth(db.tx, currentMonth);
   const spentTotal = monthExpenses.reduce((s, t) => s + (t.amt || 0), 0);
-  const incomeTotal = db.tx
+  const incomeTotal = (db.tx || [])
     .filter((t) => t.type === 'income' && t.date && t.date.slice(0, 7) === currentMonth)
     .reduce((s, t) => s + (t.amt || 0), 0);
   const balance = incomeTotal - spentTotal;
   const allowance = getDailyAllowance(db);
 
-  // Start Editing Transaction
-  const handleStartEditTx = (t) => {
-    setEditingTxId(t.id);
-    setTxType(t.type || 'expense');
-    setTxAmt(String(t.amt || ''));
-    setTxCat(t.cat || CATS[0]);
-    setTxNote(t.note || '');
-    setExistingReceipt(t.img || null);
-    setTxReceipt(null);
+  // ---------------- INCOME HANDLERS ----------------
+  const handleStartEditInc = (t) => {
+    setEditingIncId(t.id);
+    setIncAmt(String(t.amt || ''));
+    setIncSource(t.source || t.cat || INCOME_SOURCES[0]);
+    setIncNote(t.note || '');
     triggerHaptic('light', db.haptics);
   };
 
-  const handleCancelEditTx = () => {
-    setEditingTxId(null);
-    setTxAmt('');
-    setTxNote('');
-    setTxReceipt(null);
-    setExistingReceipt(null);
+  const handleCancelEditInc = () => {
+    setEditingIncId(null);
+    setIncAmt('');
+    setIncSource(INCOME_SOURCES[0]);
+    setIncNote('');
   };
 
-  // Add / Edit Transaction
-  const handleSaveTx = (e) => {
+  const handleSaveIncome = (e) => {
     e.preventDefault();
-    const amt = parseFloat(txAmt);
+    const amt = parseFloat(incAmt);
     if (!amt || amt <= 0) {
       alert('Enter an amount above 0.');
       return;
     }
 
-    const finalizeTx = (imgData) => {
-      // If a new receipt was chosen, imgData is the compressed new data url.
-      // If editing and no new receipt chosen, keep the existing receipt photo.
-      const finalImg = imgData !== undefined ? imgData : (editingTxId ? existingReceipt : null);
+    if (editingIncId) {
+      onUpdateDb((prev) => ({
+        ...prev,
+        tx: prev.tx.map((t) =>
+          t.id === editingIncId
+            ? { ...t, type: 'income', amt, cat: incSource, source: incSource, note: incNote.trim() }
+            : t
+        )
+      }));
+      handleCancelEditInc();
+      triggerHaptic('success', db.haptics);
+      if (onToast) onToast('Changes saved.');
+      return;
+    }
 
-      if (editingTxId) {
+    const newInc = {
+      id: Date.now(),
+      type: 'income',
+      amt,
+      cat: incSource,
+      source: incSource,
+      note: incNote.trim(),
+      date: today()
+    };
+    onUpdateDb((prev) => ({
+      ...prev,
+      tx: [newInc, ...prev.tx]
+    }));
+    setIncAmt('');
+    setIncNote('');
+    triggerHaptic('success', db.haptics);
+    if (onToast) onToast('Income saved.');
+  };
+
+  // ---------------- EXPENSE HANDLERS ----------------
+  const handleStartEditExp = (t) => {
+    setEditingExpId(t.id);
+    setExpAmt(String(t.amt || ''));
+    setExpCat(t.cat || CATS[0]);
+    setExpNote(t.note || '');
+    setExistingReceipt(t.img || null);
+    setExpReceipt(null);
+    triggerHaptic('light', db.haptics);
+  };
+
+  const handleCancelEditExp = () => {
+    setEditingExpId(null);
+    setExpAmt('');
+    setExpCat(CATS[0]);
+    setExpNote('');
+    setExpReceipt(null);
+    setExistingReceipt(null);
+  };
+
+  const handleSaveExpense = (e) => {
+    e.preventDefault();
+    const amt = parseFloat(expAmt);
+    if (!amt || amt <= 0) {
+      alert('Enter an amount above 0.');
+      return;
+    }
+
+    const finalizeExp = (imgData) => {
+      const finalImg = imgData !== undefined ? imgData : (editingExpId ? existingReceipt : null);
+
+      if (editingExpId) {
         onUpdateDb((prev) => ({
           ...prev,
           tx: prev.tx.map((t) =>
-            t.id === editingTxId
-              ? { ...t, type: txType, amt, cat: txCat, note: txNote.trim(), img: finalImg }
+            t.id === editingExpId
+              ? { ...t, type: 'expense', amt, cat: expCat, note: expNote.trim(), img: finalImg }
               : t
           )
         }));
-        handleCancelEditTx();
+        handleCancelEditExp();
         triggerHaptic('success', db.haptics);
         if (onToast) onToast('Changes saved.');
         return;
       }
 
-      const newTx = {
+      const newExp = {
         id: Date.now(),
-        type: txType,
+        type: 'expense',
         amt,
-        cat: txCat,
-        note: txNote.trim(),
+        cat: expCat,
+        note: expNote.trim(),
         date: today(),
         img: finalImg
       };
       onUpdateDb((prev) => ({
         ...prev,
-        tx: [newTx, ...prev.tx]
+        tx: [newExp, ...prev.tx]
       }));
-      setTxAmt('');
-      setTxNote('');
-      setTxReceipt(null);
+      setExpAmt('');
+      setExpNote('');
+      setExpReceipt(null);
       triggerHaptic('success', db.haptics);
+      if (onToast) onToast('Expense saved.');
     };
 
-    if (txReceipt) {
+    if (expReceipt) {
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
@@ -114,17 +175,17 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const compressed = canvas.toDataURL('image/jpeg', 0.5);
-          finalizeTx(compressed);
+          finalizeExp(compressed);
         };
         img.src = event.target.result;
       };
-      reader.readAsDataURL(txReceipt);
+      reader.readAsDataURL(expReceipt);
     } else {
-      finalizeTx();
+      finalizeExp();
     }
   };
 
-  // Delete Transaction with Undo
+  // ---------------- DELETE WITH UNDO ----------------
   const handleDeleteTx = (id) => {
     const idx = db.tx.findIndex((t) => t.id === id);
     if (idx === -1) return;
@@ -136,9 +197,8 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       tx: prev.tx.filter((t) => t.id !== id)
     }));
 
-    if (editingTxId === id) {
-      handleCancelEditTx();
-    }
+    if (editingIncId === id) handleCancelEditInc();
+    if (editingExpId === id) handleCancelEditExp();
 
     if (onToastWithUndo) {
       onToastWithUndo('Deleted.', () => {
@@ -152,6 +212,7 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     }
   };
 
+  // ---------------- BUDGET HANDLER ----------------
   const handleSaveBudget = (e) => {
     e.preventDefault();
     onUpdateDb((prev) => ({
@@ -185,14 +246,27 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
   }));
   const totalCatSpent = catSpending.reduce((a, c) => a + c.amount, 0);
 
-  // Filtered transactions
-  const filteredTx = db.tx.filter((t) => {
-    if (filterType && t.type !== filterType) return false;
-    if (filterCat && t.cat !== filterCat) return false;
-    if (filterMonth && t.date?.slice(0, 7) !== filterMonth) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const match = (t.note + ' ' + t.cat).toLowerCase().includes(q);
+  // Income Lists & Filtering
+  const allIncomes = (db.tx || []).filter((t) => t.type === 'income');
+  const filteredIncomes = allIncomes.filter((t) => {
+    if (incFilterSource && (t.source || t.cat) !== incFilterSource) return false;
+    if (incFilterMonth && t.date?.slice(0, 7) !== incFilterMonth) return false;
+    if (incSearch) {
+      const q = incSearch.toLowerCase();
+      const match = (t.note + ' ' + (t.source || t.cat || '')).toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  // Expense Lists & Filtering
+  const allExpenses = (db.tx || []).filter((t) => t.type === 'expense');
+  const filteredExpenses = allExpenses.filter((t) => {
+    if (expFilterCat && t.cat !== expFilterCat) return false;
+    if (expFilterMonth && t.date?.slice(0, 7) !== expFilterMonth) return false;
+    if (expSearch) {
+      const q = expSearch.toLowerCase();
+      const match = (t.note + ' ' + (t.cat || '')).toLowerCase().includes(q);
       if (!match) return false;
     }
     return true;
@@ -212,13 +286,22 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
           Overview
         </button>
         <button
-          aria-pressed={tab === 'tx'}
+          aria-pressed={tab === 'in'}
           onClick={() => {
             triggerHaptic('light', db.haptics);
-            setTab('tx');
+            setTab('in');
           }}
         >
-          Transactions
+          Income
+        </button>
+        <button
+          aria-pressed={tab === 'ex'}
+          onClick={() => {
+            triggerHaptic('light', db.haptics);
+            setTab('ex');
+          }}
+        >
+          Expenses
         </button>
         <button
           aria-pressed={tab === 'bg'}
@@ -376,72 +459,52 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
         </div>
       )}
 
-      {/* TRANSACTIONS TAB */}
-      {tab === 'tx' && (
+      {/* INCOME TAB */}
+      {tab === 'in' && (
         <div>
-          <form onSubmit={handleSaveTx} className="c">
+          <form onSubmit={handleSaveIncome} className="c">
             <div className="r">
-              <select
-                id="xt"
-                value={txType}
-                onChange={(e) => setTxType(e.target.value)}
-              >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-              </select>
               <input
-                id="xa"
+                id="ia"
                 type="number"
                 step="0.01"
-                placeholder="Amount"
-                value={txAmt}
-                onChange={(e) => setTxAmt(e.target.value)}
+                placeholder="Income amount"
+                value={incAmt}
+                onChange={(e) => setIncAmt(e.target.value)}
               />
               <select
-                id="xc"
-                value={txCat}
-                onChange={(e) => setTxCat(e.target.value)}
+                id="is"
+                value={incSource}
+                onChange={(e) => setIncSource(e.target.value)}
+                aria-label="Source"
               >
-                {CATS.map((c) => (
-                  <option key={c}>{c}</option>
+                {INCOME_SOURCES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
             <div className="r">
               <input
-                id="xn"
+                id="in_note"
                 type="text"
                 placeholder="Note (optional)"
-                value={txNote}
-                onChange={(e) => setTxNote(e.target.value)}
+                value={incNote}
+                onChange={(e) => setIncNote(e.target.value)}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '4px' }}>
-                <input
-                  id="xr"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  aria-label="Receipt photo"
-                  onChange={(e) => setTxReceipt(e.target.files?.[0] || null)}
-                />
-                {editingTxId && existingReceipt && !txReceipt && (
-                  <span className="m" style={{ fontSize: '0.75rem' }}>Receipt attached (choose new file to replace)</span>
-                )}
-              </div>
             </div>
             <div className="r" style={{ marginTop: '8px', gap: '8px' }}>
-              {editingTxId ? (
+              {editingIncId ? (
                 <>
                   <button type="submit" className="p">
                     Save changes
                   </button>
-                  <button type="button" onClick={handleCancelEditTx}>
+                  <button type="button" onClick={handleCancelEditInc}>
                     Cancel
                   </button>
                 </>
               ) : (
                 <button type="submit" className="p">
-                  Save transaction
+                  Save income
                 </button>
               )}
             </div>
@@ -453,56 +516,201 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
               <input
                 type="text"
                 placeholder="Search notes or category"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={incSearch}
+                onChange={(e) => setIncSearch(e.target.value)}
               />
             </div>
             <div className="r">
               <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                aria-label="Type"
+                value={incFilterSource}
+                onChange={(e) => setIncFilterSource(e.target.value)}
+                aria-label="Filter source"
               >
-                <option value="">All types</option>
-                <option value="expense">Expenses</option>
-                <option value="income">Income</option>
-              </select>
-              <select
-                value={filterCat}
-                onChange={(e) => setFilterCat(e.target.value)}
-                aria-label="Category"
-              >
-                <option value="">All categories</option>
-                {CATS.map((c) => (
-                  <option key={c}>{c}</option>
+                <option value="">All sources</option>
+                {INCOME_SOURCES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
               <input
                 type="month"
-                value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
+                value={incFilterMonth}
+                onChange={(e) => setIncFilterMonth(e.target.value)}
+                aria-label="Filter month"
+              />
+            </div>
+          </div>
+
+          {/* Income Count and List */}
+          <div>
+            <p className="m">
+              {filteredIncomes.length} transaction{filteredIncomes.length === 1 ? '' : 's'}
+            </p>
+            {allIncomes.length === 0 ? (
+              <div className="c">
+                <div className="empty-state">
+                  <Icon name="money" size={40} />
+                  <p>No income added yet. Add your first income above.</p>
+                </div>
+              </div>
+            ) : filteredIncomes.length === 0 ? (
+              <div className="c">
+                <div className="empty-state">
+                  <Icon name="search" size={36} />
+                  <p>No matching income.</p>
+                </div>
+              </div>
+            ) : (
+              filteredIncomes.map((t) => (
+                <div key={t.id} className="c i">
+                  <div>
+                    <b>{t.note || t.source || t.cat}</b>
+                    <div className="m">
+                      {t.date} · {t.source || t.cat}
+                    </div>
+                  </div>
+                  <div className="r" style={{ margin: 0, gap: '6px' }}>
+                    <b style={{ color: 'var(--ok)' }}>
+                      +{fmt(t.amt, db.cur)}
+                    </b>
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditInc(t)}
+                      aria-label="Edit"
+                      title="Edit"
+                      style={{ padding: '4px 8px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Icon name="edit" size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTx(t.id)}
+                      aria-label="Delete"
+                      style={{ padding: '4px 8px', minHeight: '36px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* EXPENSES TAB */}
+      {tab === 'ex' && (
+        <div>
+          <form onSubmit={handleSaveExpense} className="c">
+            <div className="r">
+              <input
+                id="ea"
+                type="number"
+                step="0.01"
+                placeholder="Expense amount"
+                value={expAmt}
+                onChange={(e) => setExpAmt(e.target.value)}
+              />
+              <select
+                id="ec"
+                value={expCat}
+                onChange={(e) => setExpCat(e.target.value)}
+                aria-label="Category"
+              >
+                {CATS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="r">
+              <input
+                id="en_note"
+                type="text"
+                placeholder="Note (optional)"
+                value={expNote}
+                onChange={(e) => setExpNote(e.target.value)}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '4px' }}>
+                <input
+                  id="er_receipt"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  aria-label="Receipt photo"
+                  onChange={(e) => setExpReceipt(e.target.files?.[0] || null)}
+                />
+                {editingExpId && existingReceipt && !expReceipt && (
+                  <span className="m" style={{ fontSize: '0.75rem' }}>Receipt attached (choose new file to replace)</span>
+                )}
+              </div>
+            </div>
+            <div className="r" style={{ marginTop: '8px', gap: '8px' }}>
+              {editingExpId ? (
+                <>
+                  <button type="submit" className="p">
+                    Save changes
+                  </button>
+                  <button type="button" onClick={handleCancelEditExp}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button type="submit" className="p">
+                  Save expense
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Filter Bar */}
+          <div className="c">
+            <div className="r">
+              <input
+                type="text"
+                placeholder="Search notes or category"
+                value={expSearch}
+                onChange={(e) => setExpSearch(e.target.value)}
+              />
+            </div>
+            <div className="r">
+              <select
+                value={expFilterCat}
+                onChange={(e) => setExpFilterCat(e.target.value)}
+                aria-label="Category"
+              >
+                <option value="">All categories</option>
+                {CATS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <input
+                type="month"
+                value={expFilterMonth}
+                onChange={(e) => setExpFilterMonth(e.target.value)}
                 aria-label="Month"
               />
             </div>
           </div>
 
-          {/* Transactions List */}
+          {/* Expenses Count and List */}
           <div>
             <p className="m">
-              {filteredTx.length} transaction{filteredTx.length === 1 ? '' : 's'}
+              {filteredExpenses.length} expense{filteredExpenses.length === 1 ? '' : 's'}
             </p>
-            {db.tx.length === 0 ? (
-              <div className="empty-state">
-                <Icon name="money" size={40} />
-                <p>No transactions yet. Add one above.</p>
+            {allExpenses.length === 0 ? (
+              <div className="c">
+                <div className="empty-state">
+                  <Icon name="money" size={40} />
+                  <p>No expenses added yet. Add your first expense above.</p>
+                </div>
               </div>
-            ) : filteredTx.length === 0 ? (
-              <div className="empty-state">
-                <Icon name="search" size={36} />
-                <p>No matching transactions.</p>
+            ) : filteredExpenses.length === 0 ? (
+              <div className="c">
+                <div className="empty-state">
+                  <Icon name="search" size={36} />
+                  <p>No matching expenses.</p>
+                </div>
               </div>
             ) : (
-              filteredTx.map((t) => (
+              filteredExpenses.map((t) => (
                 <div key={t.id} className="c i">
                   <div>
                     <b>{t.note || t.cat}</b>
@@ -512,13 +720,12 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
                   </div>
                   <div className="r" style={{ margin: 0, gap: '6px' }}>
                     {t.img && <img className="rc" src={t.img} alt="Receipt" />}
-                    <b style={{ color: t.type === 'income' ? 'var(--ok)' : 'var(--t)' }}>
-                      {t.type === 'income' ? '+' : '−'}
-                      {fmt(t.amt, db.cur)}
+                    <b>
+                      −{fmt(t.amt, db.cur)}
                     </b>
                     <button
                       type="button"
-                      onClick={() => handleStartEditTx(t)}
+                      onClick={() => handleStartEditExp(t)}
                       aria-label="Edit"
                       title="Edit"
                       style={{ padding: '4px 8px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
