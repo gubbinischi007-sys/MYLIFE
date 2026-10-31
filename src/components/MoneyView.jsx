@@ -21,6 +21,7 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
   // Expense Form State
   const [editingExpId, setEditingExpId] = useState(null);
   const [existingReceipt, setExistingReceipt] = useState(null);
+  const [isScannedExp, setIsScannedExp] = useState(false);
   const [expAmt, setExpAmt] = useState('');
   const [expCat, setExpCat] = useState(CATS[0]);
   const [expNote, setExpNote] = useState('');
@@ -107,6 +108,7 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     setExpNote(t.note || '');
     setExistingReceipt(t.img || null);
     setExpReceipt(null);
+    setIsScannedExp(!!t.scanned);
     triggerHaptic('light', db.haptics);
   };
 
@@ -117,13 +119,17 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     setExpNote('');
     setExpReceipt(null);
     setExistingReceipt(null);
+    setIsScannedExp(false);
     const fileInput = document.getElementById('er_receipt');
     if (fileInput) fileInput.value = '';
   };
 
   const handleSaveExpense = (e) => {
     e.preventDefault();
-    const amt = parseFloat(expAmt);
+    const editingTx = editingExpId ? db.tx.find((t) => t.id === editingExpId) : null;
+    const isLockedAmt = editingTx ? !!editingTx.scanned : false;
+    const amt = isLockedAmt ? editingTx.amt : parseFloat(expAmt);
+
     if (!amt || amt <= 0) {
       alert('Enter an amount above 0.');
       return;
@@ -138,7 +144,15 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
           ...prev,
           tx: prev.tx.map((t) =>
             t.id === editingExpId
-              ? { ...t, type: 'expense', amt, cat: expCat, note: expNote.trim(), img: finalImg }
+              ? {
+                  ...t,
+                  type: 'expense',
+                  amt,
+                  cat: expCat,
+                  note: expNote.trim(),
+                  img: finalImg,
+                  scanned: t.scanned || false
+                }
               : t
           )
         }));
@@ -155,7 +169,8 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
         cat: expCat,
         note: expNote.trim(),
         date: today(),
-        img: finalImg
+        img: finalImg,
+        scanned: !!isScannedExp
       };
       onUpdateDb((prev) => ({
         ...prev,
@@ -166,6 +181,7 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       setExpNote('');
       setExpReceipt(null);
       setExistingReceipt(null);
+      setIsScannedExp(false);
       const fileInput = document.getElementById('er_receipt');
       if (fileInput) fileInput.value = '';
       triggerHaptic('success', db.haptics);
@@ -232,6 +248,7 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
         setExistingReceipt(result.imageDataUrl);
         setExpReceipt(null);
       }
+      setIsScannedExp(true);
 
       triggerHaptic('success', db.haptics);
       if (onToast) {
@@ -256,6 +273,13 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     const idx = db.tx.findIndex((t) => t.id === id);
     if (idx === -1) return;
     const deletedTx = db.tx[idx];
+
+    // Scanned bill expenses cannot be deleted
+    if (deletedTx?.scanned) {
+      triggerHaptic('warning', db.haptics);
+      if (onToast) onToast('Scanned bill expenses cannot be deleted.');
+      return;
+    }
 
     triggerHaptic('light', db.haptics);
     onUpdateDb((prev) => ({
@@ -663,52 +687,71 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       )}
 
       {/* EXPENSES TAB */}
-      {tab === 'ex' && (
+      {tab === 'ex' && (() => {
+        const currentEditingExp = editingExpId ? db.tx.find((t) => t.id === editingExpId) : null;
+        const isAmountLocked = currentEditingExp ? !!currentEditingExp.scanned : false;
+
+        return (
         <div>
           <form onSubmit={handleSaveExpense} className="c">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.98rem' }}>
-                {editingExpId ? 'Edit expense' : 'New expense'}
+                {editingExpId ? (isAmountLocked ? 'Edit expense (Scanned bill)' : 'Edit expense') : 'New expense'}
               </span>
-              <label
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  background: isScanning ? 'var(--l)' : 'var(--s)',
-                  border: '1px solid var(--t)',
-                  borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  cursor: isScanning ? 'wait' : 'pointer',
-                  color: 'var(--t)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <Icon name={isScanning ? 'scan' : 'camera'} size={15} />
-                <span>{isScanning ? 'Scanning...' : 'Scan bill'}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  disabled={isScanning}
-                  onChange={handleScanReceipt}
-                  style={{ display: 'none' }}
-                />
-              </label>
+              {!editingExpId && (
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    background: isScanning ? 'var(--l)' : 'var(--s)',
+                    border: '1px solid var(--t)',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: isScanning ? 'wait' : 'pointer',
+                    color: 'var(--t)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Icon name={isScanning ? 'scan' : 'camera'} size={15} />
+                  <span>{isScanning ? 'Scanning...' : 'Scan bill'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    disabled={isScanning}
+                    onChange={handleScanReceipt}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              )}
             </div>
 
             <div className="r">
-              <input
-                id="ea"
-                type="number"
-                step="0.01"
-                placeholder="Expense amount"
-                value={expAmt}
-                onChange={(e) => setExpAmt(e.target.value)}
-                style={{ flex: 1, minWidth: '130px' }}
-              />
+              <div style={{ flex: 1, minWidth: '130px', display: 'flex', flexDirection: 'column' }}>
+                <input
+                  id="ea"
+                  type="number"
+                  step="0.01"
+                  placeholder="Expense amount"
+                  value={expAmt}
+                  onChange={(e) => setExpAmt(e.target.value)}
+                  disabled={isAmountLocked}
+                  readOnly={isAmountLocked}
+                  style={{
+                    width: '100%',
+                    opacity: isAmountLocked ? 0.7 : 1,
+                    cursor: isAmountLocked ? 'not-allowed' : 'text'
+                  }}
+                />
+                {isAmountLocked && (
+                  <span className="m" style={{ fontSize: '0.72rem', marginTop: '3px', color: 'var(--m)' }}>
+                    🔒 Scanned amount cannot be edited
+                  </span>
+                )}
+              </div>
               <select
                 id="ec"
                 value={expCat}
@@ -867,8 +910,13 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
                 <div key={t.id} className="c i">
                   <div>
                     <b>{t.note || t.cat}</b>
-                    <div className="m">
-                      {t.date} · {t.cat}
+                    <div className="m" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                      <span>{t.date} · {t.cat}</span>
+                      {t.scanned && (
+                        <span style={{ fontSize: '0.7rem', background: 'var(--l)', padding: '1px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Icon name="scan" size={10} /> Bill
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="r" style={{ margin: 0, gap: '6px' }}>
@@ -885,20 +933,23 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
                     >
                       <Icon name="edit" size={14} />
                     </button>
-                    <button
-                      onClick={() => handleDeleteTx(t.id)}
-                      aria-label="Delete"
-                      style={{ padding: '4px 8px', minHeight: '36px' }}
-                    >
-                      ✕
-                    </button>
+                    {!t.scanned && (
+                      <button
+                        onClick={() => handleDeleteTx(t.id)}
+                        aria-label="Delete"
+                        style={{ padding: '4px 8px', minHeight: '36px' }}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* BUDGET TAB */}
       {tab === 'bg' && (
