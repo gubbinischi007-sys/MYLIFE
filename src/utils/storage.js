@@ -25,6 +25,7 @@ export const INITIAL_DB = {
   bdays: [],
   passwords: [],
   vaultMaster: '',
+  geminiApiKey: '',
   cur: '$'
 };
 

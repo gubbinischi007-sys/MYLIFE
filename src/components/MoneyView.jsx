@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import Icon from './Icons';
 import { CATS, INCOME_SOURCES, fmt, month, today, getSpentForMonth, getDailyAllowance, triggerHaptic } from '../utils/storage';
+import { scanReceiptWithGemini } from '../utils/receiptScanner';
 
 const OPACITIES = [1, 0.8, 0.6, 0.45, 0.3, 0.18];
 
 export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, onToastWithUndo }) {
   const [tab, setTab] = useState(initialTab); // 'ov' | 'in' | 'ex' | 'bg'
+  const [isScanning, setIsScanning] = useState(false);
 
   // Income Form State
   const [editingIncId, setEditingIncId] = useState(null);
@@ -182,6 +184,50 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       reader.readAsDataURL(expReceipt);
     } else {
       finalizeExp();
+    }
+  };
+
+  // ---------------- BILL SCANNER (GEMINI AI) ----------------
+  const handleScanReceipt = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsScanning(true);
+    triggerHaptic('medium', db.haptics);
+    if (onToast) onToast('Scanning bill with Gemini AI...');
+
+    try {
+      const apiKey = db.geminiApiKey || undefined;
+      const result = await scanReceiptWithGemini(file, apiKey);
+
+      if (result.amount > 0) {
+        setExpAmt(String(result.amount));
+      }
+      if (result.category && CATS.includes(result.category)) {
+        setExpCat(result.category);
+      }
+      if (result.note) {
+        setExpNote(result.note);
+      }
+      if (result.imageDataUrl) {
+        setExistingReceipt(result.imageDataUrl);
+        setExpReceipt(null);
+      }
+
+      triggerHaptic('success', db.haptics);
+      if (onToast) {
+        const amtStr = result.amount ? fmt(result.amount, db.cur) : '';
+        onToast(amtStr ? `Bill scanned: ${amtStr} detected! Review & save.` : 'Bill scanned! Review and save.');
+      }
+    } catch (err) {
+      console.error('Scan failed:', err);
+      triggerHaptic('warning', db.haptics);
+      if (onToast) {
+        onToast('Could not read bill. You can enter details manually.');
+      }
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -600,6 +646,39 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       {tab === 'ex' && (
         <div>
           <form onSubmit={handleSaveExpense} className="c">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.98rem' }}>
+                {editingExpId ? 'Edit expense' : 'New expense'}
+              </span>
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  background: isScanning ? 'var(--l)' : 'var(--s)',
+                  border: '1px solid var(--t)',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: isScanning ? 'wait' : 'pointer',
+                  color: 'var(--t)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Icon name={isScanning ? 'scan' : 'camera'} size={15} />
+                <span>{isScanning ? 'Scanning...' : 'Scan bill'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={isScanning}
+                  onChange={handleScanReceipt}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
             <div className="r">
               <input
                 id="ea"
@@ -637,8 +716,18 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
                   aria-label="Receipt photo"
                   onChange={(e) => setExpReceipt(e.target.files?.[0] || null)}
                 />
-                {editingExpId && existingReceipt && !expReceipt && (
-                  <span className="m" style={{ fontSize: '0.75rem' }}>Receipt attached (choose new file to replace)</span>
+                {existingReceipt && !expReceipt && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <img src={existingReceipt} alt="Receipt thumbnail" className="rc" />
+                    <span className="m" style={{ fontSize: '0.75rem' }}>Receipt attached</span>
+                    <button
+                      type="button"
+                      onClick={() => setExistingReceipt(null)}
+                      style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

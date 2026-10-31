@@ -285,7 +285,35 @@ export default function SettingsView({ db, onUpdateDb, onToast }) {
         </div>
       </div>
 
-      {/* 3. DATA & STORAGE */}
+      {/* 3. RECEIPT SCANNER (AI) */}
+      <div>
+        <h2 style={{ margin: '0 0 8px 4px', fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#888' }}>
+          Receipt Scanner (AI)
+        </h2>
+        <div className="c">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Gemini 2.5 Flash Vision</div>
+              <div className="m" style={{ fontSize: '0.8rem' }}>Reads bills and extracts totals & merchants accurately</div>
+            </div>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '6px',
+                background: 'var(--t)',
+                color: 'var(--bg)',
+                border: '1px solid var(--l)'
+              }}
+            >
+              ● Connected
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. DATA & STORAGE */}
       <div>
         <h2 style={{ margin: '0 0 8px 4px', fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#888' }}>
           Data & Storage
