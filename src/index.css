@@ -96,6 +96,13 @@ input, select, button {
   min-height: 40px;
 }
 
+input[type="file"] {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 input:focus, select:focus {
   outline: 2px solid var(--a);
   outline-offset: 1px;

@@ -694,12 +694,14 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
                 placeholder="Expense amount"
                 value={expAmt}
                 onChange={(e) => setExpAmt(e.target.value)}
+                style={{ flex: 1, minWidth: '130px' }}
               />
               <select
                 id="ec"
                 value={expCat}
                 onChange={(e) => setExpCat(e.target.value)}
                 aria-label="Category"
+                style={{ flex: 1, minWidth: '120px' }}
               >
                 {CATS.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -713,30 +715,72 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
                 placeholder="Note (optional)"
                 value={expNote}
                 onChange={(e) => setExpNote(e.target.value)}
+                style={{ width: '100%', flex: 1 }}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '4px' }}>
-                <input
-                  id="er_receipt"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  aria-label="Receipt photo"
-                  onChange={(e) => setExpReceipt(e.target.files?.[0] || null)}
-                />
-                {existingReceipt && !expReceipt && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                    <img src={existingReceipt} alt="Receipt thumbnail" className="rc" />
-                    <span className="m" style={{ fontSize: '0.75rem' }}>Receipt attached</span>
-                    <button
-                      type="button"
-                      onClick={() => setExistingReceipt(null)}
-                      style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
+            </div>
+            {/* Receipt photo attachment */}
+            <div style={{ marginTop: '4px', width: '100%' }}>
+              <label
+                htmlFor="er_receipt"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '9px 12px',
+                  background: 'var(--s)',
+                  border: '1px dashed var(--l)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  color: expReceipt ? 'var(--t)' : 'var(--m)',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <Icon name="camera" size={16} />
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {expReceipt ? expReceipt.name : 'Attach receipt photo (optional)'}
+                </span>
+                {expReceipt && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setExpReceipt(null);
+                      const fileInput = document.getElementById('er_receipt');
+                      if (fileInput) fileInput.value = '';
+                    }}
+                    style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
                 )}
-              </div>
+              </label>
+              <input
+                id="er_receipt"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                aria-label="Receipt photo"
+                onChange={(e) => setExpReceipt(e.target.files?.[0] || null)}
+                style={{ display: 'none' }}
+              />
+              {existingReceipt && !expReceipt && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', padding: '6px 10px', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--l)' }}>
+                  <img src={existingReceipt} alt="Receipt thumbnail" className="rc" />
+                  <span className="m" style={{ fontSize: '0.78rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Receipt photo attached
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setExistingReceipt(null)}
+                    style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
             </div>
             <div className="r" style={{ marginTop: '8px', gap: '8px' }}>
               {editingExpId ? (

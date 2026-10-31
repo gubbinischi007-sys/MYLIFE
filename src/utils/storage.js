@@ -26,7 +26,7 @@ export const INITIAL_DB = {
   passwords: [],
   vaultMaster: '',
   geminiApiKey: '',
-  cur: '$'
+  cur: '₹'
 };
 
 export const today = () =>
@@ -48,7 +48,7 @@ export const when = (d) => {
 
 export const month = () => today().slice(0, 7);
 
-export const fmt = (n, cur = '$') => {
+export const fmt = (n, cur = '₹') => {
   const num = +n || 0;
   return (num < 0 ? '-' : '') + (cur || '') + Math.abs(num).toFixed(2);
 };
@@ -161,7 +161,12 @@ export const loadDb = () => {
     const raw = localStorage.getItem(K);
     if (!raw) return INITIAL_DB;
     const parsed = JSON.parse(raw);
-    return { ...INITIAL_DB, ...parsed };
+    const loaded = { ...INITIAL_DB, ...parsed };
+    // Automatically migrate currency from old default '$' to Indian Rupee '₹'
+    if (!loaded.cur || loaded.cur === '$') {
+      loaded.cur = '₹';
+    }
+    return loaded;
   } catch (e) {
     console.error('Could not load from phone storage', e);
     return INITIAL_DB;

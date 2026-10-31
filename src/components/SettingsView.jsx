@@ -95,7 +95,7 @@ export default function SettingsView({ db, onUpdateDb, onToast }) {
         bdays: [],
         passwords: [],
         vaultMaster: '',
-        cur: '$'
+        cur: '₹'
       };
       saveDb(clean);
       onUpdateDb(clean);
