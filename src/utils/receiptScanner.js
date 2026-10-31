@@ -51,16 +51,42 @@ export function compressReceiptImage(file, maxDim = 1200, quality = 0.75) {
 /**
  * Sends the receipt image to Google Gemini 2.5 Flash Vision API
  * to extract amount, merchant, category, date, and note.
+ * First attempts the secure serverless /api/scan-receipt endpoint;
+ * falls back to direct client-side Google API call if needed.
  */
 export async function scanReceiptWithGemini(file, apiKey = '') {
+  // 1. Compress image to avoid large payloads and fit neatly in phone storage
+  const dataUrl = await compressReceiptImage(file);
+  const base64Data = dataUrl.split(',')[1];
+
+  // Try serverless endpoint first
+  try {
+    const apiRes = await fetch('/api/scan-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' })
+    });
+
+    if (apiRes.ok) {
+      const parsed = await apiRes.json();
+      return {
+        amount: typeof parsed.amount === 'number' ? parsed.amount : parseFloat(parsed.amount) || 0,
+        merchant: parsed.merchant || '',
+        category: parsed.category || 'Other',
+        date: parsed.date || null,
+        note: parsed.note || parsed.merchant || '',
+        imageDataUrl: dataUrl
+      };
+    }
+  } catch (err) {
+    // Fall back to direct client-side call
+  }
+
+  // Direct client-side call using configured key
   const keyToUse = getGeminiApiKey(apiKey);
   if (!keyToUse) {
     throw new Error('Gemini API key is not configured.');
   }
-
-  // 1. Compress image to avoid large payloads and fit neatly in phone storage
-  const dataUrl = await compressReceiptImage(file);
-  const base64Data = dataUrl.split(',')[1];
 
   const prompt = `You are an expert receipt and bill scanner. Analyze this bill/receipt/invoice image.
 Extract the grand total amount, merchant/vendor name, suggested expense category, date, and a short note summary.
