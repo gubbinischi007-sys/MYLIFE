@@ -73,12 +73,22 @@ export async function scanReceiptWithGemini(file, apiKey = '') {
 
     if (apiRes.ok) {
       const parsed = await apiRes.json();
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      let note = parsed.note || '';
+      if (!note && items.length > 0) {
+        const itemsStr = items.join(', ');
+        note = parsed.merchant ? `${parsed.merchant}: ${itemsStr}` : itemsStr;
+      } else if (!note && parsed.merchant) {
+        note = parsed.merchant;
+      }
+
       return {
         amount: typeof parsed.amount === 'number' ? parsed.amount : parseFloat(parsed.amount) || 0,
         merchant: parsed.merchant || '',
         category: parsed.category || 'Other',
         date: parsed.date || null,
-        note: parsed.note || parsed.merchant || '',
+        items,
+        note,
         imageDataUrl: dataUrl
       };
     }
@@ -93,14 +103,15 @@ export async function scanReceiptWithGemini(file, apiKey = '') {
   }
 
   const prompt = `You are an expert receipt and bill scanner. Analyze this bill/receipt/invoice image.
-Extract the grand total amount, merchant/vendor name, suggested expense category, date, and a short note summary.
+Extract the grand total amount, merchant/vendor name, suggested expense category, date, individual items purchased, and note.
 Return ONLY valid JSON matching this exact structure:
 {
   "amount": number (the final grand total paid or due as a float, e.g. 450.00. 0 if unreadable),
   "merchant": string (the name of the store, restaurant, vendor, or service provider, e.g. "Starbucks", "D-Mart", "Uber"),
   "category": string (MUST be one of: "Food", "Travel", "Study", "Bills", "Fun", "Other"),
   "date": string (ISO format "YYYY-MM-DD" if printed on receipt, otherwise null),
-  "note": string (short 3-6 word summary of store name or main items, e.g. "Starbucks coffee", "Grocery shopping", "Metro ticket")
+  "items": array of strings (the specific items, dishes, or products listed on the bill, e.g. ["Milk", "Bread", "Eggs"] or ["Burger", "Fries", "Coke"]),
+  "note": string (a comma-separated list of items found on the bill, e.g. "Burger, Fries, Coke". If store is known, format like "Starbucks: Cappuccino, Croissant". If individual items are unreadable, summarize the purchase)
 }`;
 
   // Use low-latency models: 2.0-flash has no thinking delay; 2.5-flash with thinkingBudget: 0
@@ -168,12 +179,22 @@ Return ONLY valid JSON matching this exact structure:
   if (!rawText) throw new Error('No receipt data returned');
 
   const parsed = JSON.parse(rawText);
+  const items = Array.isArray(parsed.items) ? parsed.items : [];
+  let note = parsed.note || '';
+  if (!note && items.length > 0) {
+    const itemsStr = items.join(', ');
+    note = parsed.merchant ? `${parsed.merchant}: ${itemsStr}` : itemsStr;
+  } else if (!note && parsed.merchant) {
+    note = parsed.merchant;
+  }
+
   return {
     amount: typeof parsed.amount === 'number' ? parsed.amount : parseFloat(parsed.amount) || 0,
     merchant: parsed.merchant || '',
     category: parsed.category || 'Other',
     date: parsed.date || null,
-    note: parsed.note || parsed.merchant || '',
+    items,
+    note,
     imageDataUrl: dataUrl
   };
 }

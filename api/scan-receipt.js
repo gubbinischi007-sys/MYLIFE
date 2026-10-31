@@ -15,14 +15,15 @@ export default async function handler(req, res) {
     }
 
     const prompt = `You are an expert receipt and bill scanner. Analyze this bill/receipt/invoice image.
-Extract the grand total amount, merchant/vendor name, suggested expense category, date, and a short note summary.
+Extract the grand total amount, merchant/vendor name, suggested expense category, date, individual items purchased, and note.
 Return ONLY valid JSON matching this exact structure:
 {
   "amount": number (the final grand total paid or due as a float, e.g. 450.00. 0 if unreadable),
   "merchant": string (the name of the store, restaurant, vendor, or service provider, e.g. "Starbucks", "D-Mart", "Uber"),
   "category": string (MUST be one of: "Food", "Travel", "Study", "Bills", "Fun", "Other"),
   "date": string (ISO format "YYYY-MM-DD" if printed on receipt, otherwise null),
-  "note": string (short 3-6 word summary of store name or main items, e.g. "Starbucks coffee", "Grocery shopping", "Metro ticket")
+  "items": array of strings (the specific items, dishes, or products listed on the bill, e.g. ["Milk", "Bread", "Eggs"] or ["Burger", "Fries", "Coke"]),
+  "note": string (a comma-separated list of items found on the bill, e.g. "Burger, Fries, Coke". If store is known, format like "Starbucks: Cappuccino, Croissant". If individual items are unreadable, summarize the purchase)
 }`;
 
     // Prefer gemini-2.0-flash for sub-second low-latency extraction without thinking delay;

@@ -214,9 +214,20 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       if (result.category && CATS.includes(result.category)) {
         setExpCat(result.category);
       }
-      if (result.note) {
-        setExpNote(result.note);
+      // Populate note with items detected on the bill
+      let detectedNote = '';
+      if (result.items && result.items.length > 0) {
+        const itemsStr = result.items.join(', ');
+        detectedNote = result.merchant ? `${result.merchant}: ${itemsStr}` : itemsStr;
+      } else if (result.note) {
+        detectedNote = result.note;
+      } else if (result.merchant) {
+        detectedNote = result.merchant;
       }
+      if (detectedNote) {
+        setExpNote(detectedNote);
+      }
+
       if (result.imageDataUrl) {
         setExistingReceipt(result.imageDataUrl);
         setExpReceipt(null);
@@ -225,7 +236,9 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
       triggerHaptic('success', db.haptics);
       if (onToast) {
         const amtStr = result.amount ? fmt(result.amount, db.cur) : '';
-        onToast(amtStr ? `Bill scanned: ${amtStr} detected! Review & save.` : 'Bill scanned! Review and save.');
+        const itemsCount = result.items?.length;
+        const itemsText = itemsCount ? ` (${itemsCount} item${itemsCount > 1 ? 's' : ''})` : '';
+        onToast(amtStr ? `Bill scanned: ${amtStr}${itemsText} detected! Review & save.` : 'Bill scanned! Review items & save.');
       }
     } catch (err) {
       console.error('Scan failed:', err);
