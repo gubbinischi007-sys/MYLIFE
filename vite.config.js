@@ -2,9 +2,34 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { handleApiRequest } from './server/api.js';
+
+function sqliteApiPlugin() {
+  return {
+    name: 'vite-plugin-sqlite-api',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url && req.url.startsWith('/api/')) {
+          try {
+            await handleApiRequest(req, res, next);
+          } catch (err) {
+            console.error('SQLite API middleware error:', err);
+            next(err);
+          }
+        } else {
+          next();
+        }
+      });
+    }
+  };
+}
 
 export default defineConfig({
+  server: {
+    host: true
+  },
   plugins: [
+    sqliteApiPlugin(),
     react(),
     tailwindcss(),
     VitePWA({

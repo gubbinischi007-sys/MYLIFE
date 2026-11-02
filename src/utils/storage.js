@@ -177,9 +177,96 @@ export const saveDb = (db) => {
   try {
     localStorage.setItem(K, JSON.stringify(db));
   } catch (e) {
-    console.error('Storage full or error saving', e);
+    console.warn('Local storage quota warning:', e);
+  }
+  // Persist to durable SQLite database on disk
+  saveToSqlite(db);
+};
+
+let sqliteSaveTimeout = null;
+
+export const saveToSqlite = (db) => {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (sqliteSaveTimeout) clearTimeout(sqliteSaveTimeout);
+
+  return new Promise((resolve) => {
+    sqliteSaveTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(db)
+        });
+        resolve(res.ok);
+      } catch (err) {
+        // Offline or server not reachable
+        resolve(false);
+      }
+    }, 250);
+  });
+};
+
+export const syncWithSqlite = async (fallbackDb) => {
+  if (typeof window === 'undefined') return fallbackDb;
+
+  try {
+    const res = await fetch('/api/db', { cache: 'no-store' });
+    if (!res.ok) return fallbackDb;
+
+    const remote = await res.json();
+    if (remote.isVercelServerless) {
+      return fallbackDb;
+    }
+    const remoteItemCount =
+      (remote.tasks?.length || 0) +
+      (remote.tx?.length || 0) +
+      (remote.events?.length || 0) +
+      (remote.notes?.length || 0) +
+      (remote.passwords?.length || 0);
+
+    const localItemCount =
+      (fallbackDb?.tasks?.length || 0) +
+      (fallbackDb?.tx?.length || 0) +
+      (fallbackDb?.events?.length || 0) +
+      (fallbackDb?.notes?.length || 0) +
+      (fallbackDb?.passwords?.length || 0);
+
+    // If SQLite is empty but local storage has data from before, migrate local data into SQLite
+    if (remoteItemCount === 0 && localItemCount > 0) {
+      console.log('Migrating local storage data into SQLite database...');
+      await saveToSqlite(fallbackDb);
+      return fallbackDb;
+    }
+
+    const merged = { ...INITIAL_DB, ...remote };
+    if (!merged.cur || merged.cur === '$') {
+      merged.cur = '₹';
+    }
+
+    // Cache to localStorage for instant offline access
+    try {
+      localStorage.setItem(K, JSON.stringify(merged));
+    } catch (e) {}
+
+    return merged;
+  } catch (err) {
+    console.warn('Could not sync with SQLite, using local copy:', err);
+    return fallbackDb;
   }
 };
+
+export const checkSqliteStatus = async () => {
+  if (typeof window === 'undefined') return { online: false };
+  try {
+    const res = await fetch('/api/status', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      return { online: true, ...data };
+    }
+  } catch (e) {}
+  return { online: false };
+};
+
 
 export const exportBackup = (db) => {
   const a = document.createElement('a');

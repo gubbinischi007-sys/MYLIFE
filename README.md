@@ -1,46 +1,46 @@
-# TaskPulse — Offline-First To-Do & Habits PWA 📱
+# MYLIFE — Personal, College, Tasks & Money Tracker 📱
 
-A modern, fast, mobile-first **Progressive Web App (PWA)** built with **React + Vite + Tailwind CSS**. All your tasks, habits, and notes are saved **100% locally on your phone storage** (`localStorage`), meaning it operates completely offline without needing any cloud accounts, internet connection, or backend servers.
+A modern, fast, mobile-first **Progressive Web App (PWA)** built with **React 19 + Vite 6 + Tailwind CSS v4 + SQLite**. 
+
+All your tasks, college exams, assignments, finances, notes, and passwords are saved to a durable local **SQLite Database** (`data/mylife.db`) with automatic local browser cache fallback. Your data is stored on disk with ACID transactions, WAL mode, and zero external tracking.
 
 ---
 
 ## 🌟 Key Features
 
+- 🗄️ **Durable SQLite Database**: Persists all records into an ACID-compliant local SQL file (`data/mylife.db`). Data is safe across reboots, port changes, and device restarts.
 - 📱 **PWA (Progressive Web App)**: Installable on iOS (Safari) and Android (Chrome) as a full-screen, native-feeling app.
-- 💾 **Phone-Only Storage**: Stored securely on your device. Zero external tracking or accounts.
-- ⚡ **Offline-Ready**: Full offline caching via Workbox Service Worker (`sw.js`).
-- 🎯 **Smart Task Scheduling**:
-  - Quick due date presets: *Today*, *Tomorrow*, *+1 Week*, or custom date.
-  - Recurrence engine: Automatically schedules the next occurrence for *Daily*, *Weekdays*, *Weekly*, or *Monthly* routines.
-  - Priority flags (Urgent 🔥, Medium, Low).
-- 🏷️ **Categories / Tags**: Personal, Work, Study, Health, Errands.
-- 🔒 **Privacy App PIN Lock**: Optional 4-digit PIN lock screen to keep private notes and tasks secure.
-- 📊 **Daily Momentum & Progress Bar**: Visual radial progress and completion percentage.
-- 🔍 **Real-Time Search & Filters**: Filter by *All*, *Today*, *Upcoming*, *Urgent*, or *Done*.
-- 💾 **Backup & Restore**: Export your data to a `.json` file anytime and restore it on any phone or computer.
-- 🎉 **Celebratory Confetti**: Instant micro-reward animation on completing tasks.
+- 🔄 **Cross-Device Shared Storage**: Any device on your local Wi-Fi (phone, laptop, tablet) connects to the same SQLite database via `--host`.
+- ⚡ **Offline Resilience**: Automatically caches data locally in browser storage so the app opens instantly even when disconnected.
+- 🧾 **AI Receipt Scanner**: Powered by Google Gemini Vision (`gemini-2.0-flash`), reads paper bills and parses grand total, merchant, category, and line items.
+- 🔒 **Encrypted Password Vault & App PIN Lock**: Optional 4-digit PIN lock screen and master-password protected vault.
+- 💰 **Money & Budgeting**: Expense & income tracker, daily allowance calculator, 6-month spending chart, and category budget limits.
+- 🎓 **College Hub**: Track upcoming exams with urgency countdowns and coursework assignments.
+- 🔍 **Spotlight Search (`Cmd+K`)**: Global search across tasks, notes, passwords, exams, and expenses.
+- 💾 **Backup & Restore**: Export your data to a `.json` file anytime and restore it easily.
 
 ---
 
 ## 🚀 How to Run & Test
 
-### 1. Start the Dev Server
+### 1. Start the App (Vite + Integrated SQLite API)
 ```bash
 npm run dev
 ```
+The Vite development server automatically launches the built-in SQLite database engine on `http://localhost:5173`.
 
 ### 2. Open on Your Phone (Same Wi-Fi)
-To test and install the PWA directly on your phone:
+To access and share the same SQLite database on your phone:
 ```bash
 npm run dev -- --host
 ```
 Vite will output a Network URL (e.g., `http://192.168.x.x:5173`). Open that URL in your mobile browser:
-- **On Android (Chrome)**: Tap the **"Install"** button on the banner, or tap the three dots `⋮` → **Install app**.
+- **On Android (Chrome)**: Tap the **"Install"** button on the banner, or tap `⋮` → **Install app**.
 - **On iPhone (Safari)**: Tap the **Share** button `⎋` in the bottom bar → scroll down and tap **Add to Home Screen** `⊞`.
 
-### 3. Production Build
+### 3. Production Server
+To run the production Node.js server with SQLite:
 ```bash
 npm run build
-npm run preview
+npm run server
 ```
-

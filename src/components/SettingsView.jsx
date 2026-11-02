@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { exportBackup, ACCENT_COLORS, getStorageUsage, triggerHaptic, saveDb } from '../utils/storage';
+import React, { useState, useEffect } from 'react';
+import { exportBackup, ACCENT_COLORS, getStorageUsage, triggerHaptic, saveDb, checkSqliteStatus } from '../utils/storage';
 
 export default function SettingsView({ db, onUpdateDb, onToast }) {
   const [pinInput, setPinInput] = useState('');
   const [msg, setMsg] = useState('');
   const [isChangingPin, setIsChangingPin] = useState(false);
+  const [sqliteStatus, setSqliteStatus] = useState(null);
+
+  useEffect(() => {
+    checkSqliteStatus().then(setSqliteStatus);
+  }, []);
 
   const storageUsed = getStorageUsage();
 
@@ -321,7 +326,29 @@ export default function SettingsView({ db, onUpdateDb, onToast }) {
         <div className="c">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: 600 }}>Phone Storage Usage</div>
+              <div style={{ fontWeight: 600 }}>SQLite Database (SQL)</div>
+              <div className="m" style={{ fontSize: '0.8rem' }}>Durable storage in <code>data/mylife.db</code></div>
+            </div>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '6px',
+                background: sqliteStatus?.online ? 'var(--t)' : 'var(--s)',
+                color: sqliteStatus?.online ? 'var(--bg)' : 'var(--m)',
+                border: '1px solid var(--l)'
+              }}
+            >
+              {sqliteStatus?.online ? '● Connected' : 'Offline / Local'}
+            </span>
+          </div>
+        </div>
+
+        <div className="c">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Phone Storage Cache</div>
               <div className="m" style={{ fontSize: '0.8rem' }}>Stored locally in your browser</div>
             </div>
             <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{storageUsed}</div>

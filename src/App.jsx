@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { loadDb, saveDb, getSoonBirthdays, ACCENT_COLORS, triggerHaptic } from './utils/storage';
+import { loadDb, saveDb, syncWithSqlite, getSoonBirthdays, ACCENT_COLORS, triggerHaptic } from './utils/storage';
 import Icon from './components/Icons';
 import Navigation from './components/Navigation';
 import LockScreen from './components/LockScreen';
@@ -41,7 +41,23 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Persist DB changes to phone local storage
+  // Sync with SQLite backend on launch
+  useEffect(() => {
+    let isMounted = true;
+    syncWithSqlite(db).then((synced) => {
+      if (isMounted && synced) {
+        setDb(synced);
+        if (synced.pin) {
+          setIsLocked(true);
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Persist DB changes to phone local storage and SQLite
   useEffect(() => {
     saveDb(db);
   }, [db]);

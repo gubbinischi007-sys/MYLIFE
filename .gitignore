@@ -6,3 +6,8 @@ dist-ssr
 
 .vercel
 .env*
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
