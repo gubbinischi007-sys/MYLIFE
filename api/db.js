@@ -9,7 +9,8 @@ export default function handler(req, res) {
       assign: [],
       bdays: [],
       notes: [],
-      passwords: []
+      passwords: [],
+      deleted: []
     });
   }
 
@@ -18,3 +19,4 @@ export default function handler(req, res) {
     platform: 'Vercel Serverless'
   });
 }
+

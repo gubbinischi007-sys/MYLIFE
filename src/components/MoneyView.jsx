@@ -282,21 +282,32 @@ export default function MoneyView({ db, onUpdateDb, initialTab = 'ov', onToast, 
     }
 
     triggerHaptic('light', db.haptics);
+    const trashItem = {
+      id: Date.now(),
+      type: 'tx',
+      item: deletedTx,
+      deletedAt: new Date().toISOString()
+    };
     onUpdateDb((prev) => ({
       ...prev,
-      tx: prev.tx.filter((t) => t.id !== id)
+      tx: prev.tx.filter((t) => t.id !== id),
+      deleted: [trashItem, ...(prev.deleted || [])]
     }));
 
     if (editingIncId === id) handleCancelEditInc();
     if (editingExpId === id) handleCancelEditExp();
 
     if (onToastWithUndo) {
-      onToastWithUndo('Deleted.', () => {
+      onToastWithUndo('Moved to Recently Deleted.', () => {
         onUpdateDb((prev) => {
           const nextTx = [...prev.tx];
           const targetIdx = Math.min(idx, nextTx.length);
           nextTx.splice(targetIdx, 0, deletedTx);
-          return { ...prev, tx: nextTx };
+          return {
+            ...prev,
+            tx: nextTx,
+            deleted: (prev.deleted || []).filter((d) => d.id !== trashItem.id)
+          };
         });
       });
     }

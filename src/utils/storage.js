@@ -26,7 +26,8 @@ export const INITIAL_DB = {
   passwords: [],
   vaultMaster: '',
   geminiApiKey: '',
-  cur: '₹'
+  cur: '₹',
+  deleted: []
 };
 
 export const today = () =>

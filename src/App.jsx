@@ -9,6 +9,7 @@ import CollegeView from './components/CollegeView';
 import MoneyView from './components/MoneyView';
 import ReportsView from './components/ReportsView';
 import SettingsView from './components/SettingsView';
+import RecentlyDeletedView from './components/RecentlyDeletedView';
 import SpeedAddModal from './components/SpeedAddModal';
 import SpotlightModal from './components/SpotlightModal';
 
@@ -167,6 +168,7 @@ export default function App() {
     personal: 'Personal',
     college: 'College',
     money: 'Money',
+    deleted: 'Recently Deleted',
     reports: 'Reports',
     settings: 'Settings'
   };
@@ -295,6 +297,14 @@ export default function App() {
         )}
         {page === 'money' && (
           <MoneyView
+            db={db}
+            onUpdateDb={setDb}
+            onToast={showToast}
+            onToastWithUndo={showToastWithUndo}
+          />
+        )}
+        {page === 'deleted' && (
+          <RecentlyDeletedView
             db={db}
             onUpdateDb={setDb}
             onToast={showToast}

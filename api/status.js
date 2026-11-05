@@ -5,3 +5,4 @@ export default function handler(req, res) {
     note: 'Vercel deployment is active.'
   });
 }
+

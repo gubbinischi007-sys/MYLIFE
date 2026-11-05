@@ -76,6 +76,13 @@ db.exec(`
     cat TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS deleted (
+    id INTEGER PRIMARY KEY,
+    type TEXT NOT NULL,
+    item TEXT NOT NULL,
+    deletedAt TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     val TEXT
@@ -139,6 +146,21 @@ export function getFullDb() {
     cat: r.cat || ''
   }));
 
+  const deleted = db.prepare('SELECT * FROM deleted ORDER BY id DESC').all().map((r) => {
+    let item = {};
+    try {
+      item = JSON.parse(r.item);
+    } catch (e) {
+      item = {};
+    }
+    return {
+      id: Number(r.id),
+      type: r.type,
+      item,
+      deletedAt: r.deletedAt
+    };
+  });
+
   const settingsRows = db.prepare('SELECT * FROM settings').all();
   const settings = {};
   for (const s of settingsRows) {
@@ -162,6 +184,7 @@ export function getFullDb() {
     bdays,
     notes,
     passwords,
+    deleted,
     budget,
     pin: settings.pin || '',
     theme: settings.theme || 'dark',
@@ -268,6 +291,22 @@ export function saveFullDb(data) {
           p.pass || '',
           p.date || '',
           p.cat || ''
+        );
+      }
+    }
+
+    // Recently Deleted
+    if (Array.isArray(data.deleted)) {
+      db.exec('DELETE FROM deleted;');
+      const stmt = db.prepare(
+        'INSERT INTO deleted (id, type, item, deletedAt) VALUES (?, ?, ?, ?);'
+      );
+      for (const d of data.deleted) {
+        stmt.run(
+          d.id || Date.now(),
+          d.type || 'item',
+          typeof d.item === 'string' ? d.item : JSON.stringify(d.item || {}),
+          d.deletedAt || new Date().toISOString()
         );
       }
     }

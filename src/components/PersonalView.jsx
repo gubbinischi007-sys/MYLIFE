@@ -139,9 +139,16 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
     const deletedTask = db.tasks[idx];
 
     triggerHaptic('light', db.haptics);
+    const trashItem = {
+      id: Date.now(),
+      type: 'task',
+      item: deletedTask,
+      deletedAt: new Date().toISOString()
+    };
     onUpdateDb((prev) => ({
       ...prev,
-      tasks: prev.tasks.filter((t) => t.id !== id)
+      tasks: prev.tasks.filter((t) => t.id !== id),
+      deleted: [trashItem, ...(prev.deleted || [])]
     }));
 
     if (editingTaskId === id) {
@@ -149,12 +156,16 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
     }
 
     if (onToastWithUndo) {
-      onToastWithUndo('Deleted.', () => {
+      onToastWithUndo('Moved to Recently Deleted.', () => {
         onUpdateDb((prev) => {
           const nextTasks = [...prev.tasks];
           const targetIdx = Math.min(idx, nextTasks.length);
           nextTasks.splice(targetIdx, 0, deletedTask);
-          return { ...prev, tasks: nextTasks };
+          return {
+            ...prev,
+            tasks: nextTasks,
+            deleted: (prev.deleted || []).filter((d) => d.id !== trashItem.id)
+          };
         });
       });
     }
@@ -211,9 +222,16 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
     const deletedBday = db.bdays[idx];
 
     triggerHaptic('light', db.haptics);
+    const trashItem = {
+      id: Date.now(),
+      type: 'bday',
+      item: deletedBday,
+      deletedAt: new Date().toISOString()
+    };
     onUpdateDb((prev) => ({
       ...prev,
-      bdays: prev.bdays.filter((b) => b.id !== id)
+      bdays: prev.bdays.filter((b) => b.id !== id),
+      deleted: [trashItem, ...(prev.deleted || [])]
     }));
 
     if (editingBdayId === id) {
@@ -221,12 +239,16 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
     }
 
     if (onToastWithUndo) {
-      onToastWithUndo('Deleted.', () => {
+      onToastWithUndo('Moved to Recently Deleted.', () => {
         onUpdateDb((prev) => {
           const nextBdays = [...prev.bdays];
           const targetIdx = Math.min(idx, nextBdays.length);
           nextBdays.splice(targetIdx, 0, deletedBday);
-          return { ...prev, bdays: nextBdays };
+          return {
+            ...prev,
+            bdays: nextBdays,
+            deleted: (prev.deleted || []).filter((d) => d.id !== trashItem.id)
+          };
         });
       });
     }
@@ -280,9 +302,16 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
     const deletedNote = db.notes[idx];
 
     triggerHaptic('light', db.haptics);
+    const trashItem = {
+      id: Date.now(),
+      type: 'note',
+      item: deletedNote,
+      deletedAt: new Date().toISOString()
+    };
     onUpdateDb((prev) => ({
       ...prev,
-      notes: prev.notes.filter((n) => n.id !== id)
+      notes: prev.notes.filter((n) => n.id !== id),
+      deleted: [trashItem, ...(prev.deleted || [])]
     }));
 
     if (editingNoteId === id) {
@@ -290,12 +319,16 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
     }
 
     if (onToastWithUndo) {
-      onToastWithUndo('Deleted.', () => {
+      onToastWithUndo('Moved to Recently Deleted.', () => {
         onUpdateDb((prev) => {
           const nextNotes = [...prev.notes];
           const targetIdx = Math.min(idx, nextNotes.length);
           nextNotes.splice(targetIdx, 0, deletedNote);
-          return { ...prev, notes: nextNotes };
+          return {
+            ...prev,
+            notes: nextNotes,
+            deleted: (prev.deleted || []).filter((d) => d.id !== trashItem.id)
+          };
         });
       });
     }
@@ -431,16 +464,28 @@ export default function PersonalView({ db, onUpdateDb, currentSubtab, onSubtabCh
   // Two-tap delete for sensitive passwords
   const handleDeleteClick = (id) => {
     if (deleteConfirmId === id) {
+      const idx = (db.passwords || []).findIndex((p) => p.id === id);
+      const deletedPwd = idx !== -1 ? db.passwords[idx] : null;
+      const trashItem = deletedPwd
+        ? {
+            id: Date.now(),
+            type: 'password',
+            item: deletedPwd,
+            deletedAt: new Date().toISOString()
+          }
+        : null;
+
       onUpdateDb((prev) => ({
         ...prev,
-        passwords: (prev.passwords || []).filter((p) => p.id !== id)
+        passwords: (prev.passwords || []).filter((p) => p.id !== id),
+        deleted: trashItem ? [trashItem, ...(prev.deleted || [])] : (prev.deleted || [])
       }));
       if (editingPwdId === id) {
         handleCancelEditPwd();
       }
       setDeleteConfirmId(null);
       triggerHaptic('light', db.haptics);
-      if (onToast) onToast('Entry deleted.');
+      if (onToast) onToast('Moved to Recently Deleted.');
     } else {
       setDeleteConfirmId(id);
       triggerHaptic('warning', db.haptics);

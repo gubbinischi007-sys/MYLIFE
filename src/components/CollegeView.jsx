@@ -70,9 +70,16 @@ export default function CollegeView({ db, onUpdateDb, onToast, onToastWithUndo }
     const deletedExam = db.events[idx];
 
     triggerHaptic('light', db.haptics);
+    const trashItem = {
+      id: Date.now(),
+      type: 'exam',
+      item: deletedExam,
+      deletedAt: new Date().toISOString()
+    };
     onUpdateDb((prev) => ({
       ...prev,
-      events: prev.events.filter((e) => e.id !== id)
+      events: prev.events.filter((e) => e.id !== id),
+      deleted: [trashItem, ...(prev.deleted || [])]
     }));
 
     if (editingExamId === id) {
@@ -80,12 +87,16 @@ export default function CollegeView({ db, onUpdateDb, onToast, onToastWithUndo }
     }
 
     if (onToastWithUndo) {
-      onToastWithUndo('Deleted.', () => {
+      onToastWithUndo('Moved to Recently Deleted.', () => {
         onUpdateDb((prev) => {
           const nextEvents = [...prev.events];
           const targetIdx = Math.min(idx, nextEvents.length);
           nextEvents.splice(targetIdx, 0, deletedExam);
-          return { ...prev, events: nextEvents };
+          return {
+            ...prev,
+            events: nextEvents,
+            deleted: (prev.deleted || []).filter((d) => d.id !== trashItem.id)
+          };
         });
       });
     }
@@ -154,9 +165,16 @@ export default function CollegeView({ db, onUpdateDb, onToast, onToastWithUndo }
     const deletedAssign = db.assign[idx];
 
     triggerHaptic('light', db.haptics);
+    const trashItem = {
+      id: Date.now(),
+      type: 'assign',
+      item: deletedAssign,
+      deletedAt: new Date().toISOString()
+    };
     onUpdateDb((prev) => ({
       ...prev,
-      assign: prev.assign.filter((a) => a.id !== id)
+      assign: prev.assign.filter((a) => a.id !== id),
+      deleted: [trashItem, ...(prev.deleted || [])]
     }));
 
     if (editingAssignId === id) {
@@ -164,12 +182,16 @@ export default function CollegeView({ db, onUpdateDb, onToast, onToastWithUndo }
     }
 
     if (onToastWithUndo) {
-      onToastWithUndo('Deleted.', () => {
+      onToastWithUndo('Moved to Recently Deleted.', () => {
         onUpdateDb((prev) => {
           const nextAssign = [...prev.assign];
           const targetIdx = Math.min(idx, nextAssign.length);
           nextAssign.splice(targetIdx, 0, deletedAssign);
-          return { ...prev, assign: nextAssign };
+          return {
+            ...prev,
+            assign: nextAssign,
+            deleted: (prev.deleted || []).filter((d) => d.id !== trashItem.id)
+          };
         });
       });
     }

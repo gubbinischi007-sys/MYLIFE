@@ -10,6 +10,15 @@ export default function Navigation({ activePage, onNavigate, isMenuOpen, onClose
     { id: 'reports', label: 'Reports' }
   ];
 
+  const drawerItems = [
+    { id: 'home', label: 'Home' },
+    { id: 'personal', label: 'Personal' },
+    { id: 'college', label: 'College' },
+    { id: 'money', label: 'Money' },
+    { id: 'deleted', label: 'Recently Deleted' },
+    { id: 'reports', label: 'Reports' }
+  ];
+
   return (
     <>
       {/* Bottom Navigation */}
@@ -51,7 +60,7 @@ export default function Navigation({ activePage, onNavigate, isMenuOpen, onClose
 
             {/* Menu Links */}
             <div style={{ marginTop: '12px', flex: 1 }}>
-              {navItems.map((item) => {
+              {drawerItems.map((item) => {
                 const isActive = activePage === item.id;
                 return (
                   <a
