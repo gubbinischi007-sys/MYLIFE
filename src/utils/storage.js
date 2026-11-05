@@ -49,6 +49,28 @@ export const when = (d) => {
 
 export const month = () => today().slice(0, 7);
 
+export const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+
+export const pruneExpiredDeleted = (deleted = []) => {
+  if (!Array.isArray(deleted)) return [];
+  const now = Date.now();
+  return deleted.filter((d) => {
+    if (!d || !d.deletedAt) return false;
+    const deletedTime = new Date(d.deletedAt).getTime();
+    if (isNaN(deletedTime)) return false;
+    return now - deletedTime < FIFTEEN_DAYS_MS;
+  });
+};
+
+export const getDeletedDaysRemaining = (deletedAt) => {
+  if (!deletedAt) return 0;
+  const deletedTime = new Date(deletedAt).getTime();
+  if (isNaN(deletedTime)) return 0;
+  const elapsed = Date.now() - deletedTime;
+  const remainingMs = FIFTEEN_DAYS_MS - elapsed;
+  return Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+};
+
 export const fmt = (n, cur = '₹') => {
   const num = +n || 0;
   return (num < 0 ? '-' : '') + (cur || '') + Math.abs(num).toFixed(2);
@@ -167,6 +189,9 @@ export const loadDb = () => {
     if (!loaded.cur || loaded.cur === '$') {
       loaded.cur = '₹';
     }
+    if (Array.isArray(loaded.deleted)) {
+      loaded.deleted = pruneExpiredDeleted(loaded.deleted);
+    }
     return loaded;
   } catch (e) {
     console.error('Could not load from phone storage', e);
@@ -242,6 +267,9 @@ export const syncWithSqlite = async (fallbackDb) => {
     const merged = { ...INITIAL_DB, ...remote };
     if (!merged.cur || merged.cur === '$') {
       merged.cur = '₹';
+    }
+    if (Array.isArray(merged.deleted)) {
+      merged.deleted = pruneExpiredDeleted(merged.deleted);
     }
 
     // Cache to localStorage for instant offline access

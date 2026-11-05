@@ -146,6 +146,10 @@ export function getFullDb() {
     cat: r.cat || ''
   }));
 
+  // Auto-prune items deleted more than 15 days ago
+  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+  db.prepare('DELETE FROM deleted WHERE deletedAt < ?').run(fifteenDaysAgo);
+
   const deleted = db.prepare('SELECT * FROM deleted ORDER BY id DESC').all().map((r) => {
     let item = {};
     try {
@@ -295,13 +299,15 @@ export function saveFullDb(data) {
       }
     }
 
-    // Recently Deleted
+    // Recently Deleted (auto-prune items older than 15 days)
     if (Array.isArray(data.deleted)) {
       db.exec('DELETE FROM deleted;');
+      const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
+      const validDeleted = data.deleted.filter((d) => d && d.deletedAt && d.deletedAt >= fifteenDaysAgo);
       const stmt = db.prepare(
         'INSERT INTO deleted (id, type, item, deletedAt) VALUES (?, ?, ?, ?);'
       );
-      for (const d of data.deleted) {
+      for (const d of validDeleted) {
         stmt.run(
           d.id || Date.now(),
           d.type || 'item',

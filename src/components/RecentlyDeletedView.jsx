@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from './Icons';
-import { fmt, triggerHaptic } from '../utils/storage';
+import { fmt, triggerHaptic, getDeletedDaysRemaining, pruneExpiredDeleted } from '../utils/storage';
 
 export default function RecentlyDeletedView({ db, onUpdateDb, onToast }) {
   const [filter, setFilter] = useState('all'); // 'all' | 'tasks' | 'money' | 'college' | 'personal'
   const deleted = db.deleted || [];
+
+  // Automatically prune expired items older than 15 days on mount
+  useEffect(() => {
+    const unexpired = pruneExpiredDeleted(db.deleted || []);
+    if (unexpired.length !== (db.deleted || []).length) {
+      onUpdateDb((prev) => ({
+        ...prev,
+        deleted: unexpired
+      }));
+    }
+  }, []);
 
   const handleRestore = (entry) => {
     triggerHaptic('success', db.haptics);
@@ -187,6 +198,25 @@ export default function RecentlyDeletedView({ db, onUpdateDb, onToast }) {
 
   return (
     <div>
+      {/* 15-day policy notice banner */}
+      <div
+        className="c"
+        style={{
+          fontSize: '0.82rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'rgba(255,255,255,0.03)',
+          borderColor: 'var(--l)',
+          marginBottom: '10px'
+        }}
+      >
+        <span style={{ fontSize: '1rem' }}>⏱️</span>
+        <span className="m" style={{ color: 'var(--t)' }}>
+          Deleted items are kept for <b>15 days</b> before being automatically removed forever. You can restore or permanently delete them anytime.
+        </span>
+      </div>
+
       {/* Header bar with count & Empty Trash */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <div className="m" style={{ fontSize: '0.85rem' }}>
@@ -264,6 +294,21 @@ export default function RecentlyDeletedView({ db, onUpdateDb, onToast }) {
                   <span className="m" style={{ fontSize: '0.72rem' }}>
                     {formatDeletedTime(entry.deletedAt)}
                   </span>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: getDeletedDaysRemaining(entry.deletedAt) <= 3 ? 'rgba(255, 77, 79, 0.15)' : 'var(--s)',
+                      color: getDeletedDaysRemaining(entry.deletedAt) <= 3 ? 'var(--bad)' : 'var(--m)',
+                      border: getDeletedDaysRemaining(entry.deletedAt) <= 3 ? '1px solid var(--bad)' : '1px solid var(--l)'
+                    }}
+                  >
+                    {getDeletedDaysRemaining(entry.deletedAt) === 0
+                      ? 'Expires today'
+                      : `${getDeletedDaysRemaining(entry.deletedAt)}d left`}
+                  </span>
                 </div>
                 {renderItemDetails(entry)}
               </div>
@@ -321,3 +366,4 @@ export default function RecentlyDeletedView({ db, onUpdateDb, onToast }) {
     </div>
   );
 }
+
